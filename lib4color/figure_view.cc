@@ -1,15 +1,32 @@
-#include <figure.hh>
-#include <figure_view.hh>
+// Copyright © 2021 Sam Varner
+//
+// This file is part of 4color.
+//
+// 4color is free software: you can redistribute it and/or modify it under the terms of
+// the GNU General Public License as published by the Free Software Foundation, either
+// version 3 of the License, or (at your option) any later version.
+//
+// Composure is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+// PURPOSE.  See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Composure.
+// If not, see <http://www.gnu.org/licenses/>.
+
+#include "figure.hh"
+#include "figure_view.hh"
 
 #include <cassert>
-#include <cmath>
 
+// Transformation matrices for reflections and 90-degree rotations.
 Matrix constexpr Rl{ 0, -1,  1,  0}; // Left (CCW) rotation
 Matrix constexpr Rr{ 0,  1, -1,  0}; // Right (CW) rotation
 Matrix constexpr Fx{ 1,  0,  0, -1}; // Flip about x-axis
 Matrix constexpr Fy{-1,  0,  0,  1}; // Flip about y-axis
 
-// Multiply transformation matrices.
+using VTiles = std::vector<Point<int>>;
+
+/// Multiply transformation matrices.
 Matrix operator*(Matrix const& m1, Matrix const& m2)
 {
     return {m1.xx*m2.xx + m1.xy*m2.yx,
@@ -18,53 +35,52 @@ Matrix operator*(Matrix const& m1, Matrix const& m2)
         m1.yx*m2.xy + m1.yy*m2.yy};
 }
 
-// Apply a transformation to a point.
+/// Apply a transformation to a point.
 template <typename T>
 Point<T> operator*(Matrix const& m1, Point<T> const& p)
 {
     return {m1.xx*p.x + m1.xy*p.y, m1.yx*p.x + m1.yy*p.y};
 }
 
+/// @return The transpose of a matrix - the inverse of a transformation matrix.
 Matrix transpose(Matrix const& m)
 {
     return {m.xx, m.yx,
             m.xy, m.yy};
 }
 
-Point<int> round(Point<double> const& p, double factor = 1.0)
-{
-    return {static_cast<int>(std::round(p.x * factor)),
-            static_cast<int>(std::round(p.y * factor))};
-}
-
+/// Change the tiles' positions.
 void do_translate(Point<int> dr, VTiles& tiles)
 {
     for (auto& tile : tiles)
         tile += dr;
 }
 
+/// Rotate or reflect the tiles.
 void transform(Matrix const& m, VTiles& tiles)
 {
     for (auto& tile : tiles)
         tile = m*tile;
 }
 
+/// Multiply the tile positions by an integer.
 void expand(int factor, VTiles& tiles)
 {
     for (auto& tile : tiles)
         tile *= factor;
 }
 
+/// Divide the tile positions by an integer.
 void shrink(int factor, VTiles& tiles)
 {
     for (auto& tile : tiles)
         tile /= factor;
 }
 
-Figure_View::Figure_View(Figure& fig, Point<int> dr, Color const& color)
+Figure_View::Figure_View(Figure& fig, Point<int> position, Color const& color)
     : m_figure{fig},
-      m_init_dr{static_cast<double>(dr.x), static_cast<double>(dr.y)},
-      m_dr{m_init_dr},
+      m_init_position{static_cast<double>(position.x), static_cast<double>(position.y)},
+      m_dr{m_init_position},
       m_color{color}
 {
 }
@@ -83,7 +99,7 @@ VTiles Figure_View::tiles() const
     // Magnify the figure by a factor of 2 so the corners are at integer coordinates.
     VTiles tiles(m_figure.tiles().begin(), m_figure.tiles().end());
 
-    auto r2{round(m_figure.cm(), 2.0)};
+    auto r2{round<int>(m_figure.cm(), 2.0)};
 
     expand(2, tiles);
     // Move the expanded tiles to the origin.
@@ -103,7 +119,7 @@ VTiles Figure_View::tiles() const
     shrink(2, tiles);
 
     // Finally, translate the figure.
-    do_translate(round(m_dr), tiles);
+    do_translate(round<int>(m_dr), tiles);
     return tiles;
 }
 
@@ -111,10 +127,10 @@ Figure_View& Figure_View::toggle(Point<int> p)
 {
     auto cm1{m_figure.cm()};
 
-    auto r2{round(m_figure.cm(), 2.0)};
+    auto r2{round<int>(m_figure.cm(), 2.0)};
     // Un-transform the point.
     VTiles tiles{p};
-    Point<int> dr{round(m_dr, 0.9999)};
+    Point<int> dr{round<int>(m_dr, 0.9999)};
     // Point<int> dr{static_cast<int>(m_dr.x), static_cast<int>(m_dr.y)};
     do_translate(-dr, tiles);
     expand(2, tiles);
@@ -169,12 +185,11 @@ Figure_View& Figure_View::rotate_cw()
 
 Figure_View& Figure_View::reset()
 {
-    m_dr = m_init_dr;
+    m_dr = m_init_position;
     m_transform = Matrix();
     return *this;
 }
 
-// Print and ASCII picture of the transformed figure to a stream.
 std::ostream& operator<<(std::ostream& os, Figure_View const& f)
 {
     // True if p1 is to the left of p2.

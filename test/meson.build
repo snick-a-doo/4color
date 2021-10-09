@@ -9,4 +9,4 @@ test_app = executable('test_app',
                       include_directories: inc,
                       link_with: four_color_lib)
 
-test('4-color test', test_app)
+test('4color test', test_app)

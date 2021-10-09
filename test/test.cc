@@ -1,3 +1,18 @@
+// Copyright © 2021 Sam Varner
+//
+// This file is part of 4color.
+//
+// 4color is free software: you can redistribute it and/or modify it under the terms of
+// the GNU General Public License as published by the Free Software Foundation, either
+// version 3 of the License, or (at your option) any later version.
+//
+// Composure is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+// without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+// PURPOSE.  See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Composure.
+// If not, see <http://www.gnu.org/licenses/>.
+
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
@@ -69,7 +84,7 @@ std::ostream& operator<<(std::ostream& os, Tile_List const& tiles)
     return os;
 }
 
-bool same_tiles(VTiles const& prime, Tile_List const& expected)
+bool same_tiles(std::vector<Point<int>> const& prime, Tile_List const& expected)
 {
     Tile_List ps{prime.begin(), prime.end()};
     if (ps == expected)
@@ -233,22 +248,4 @@ TEST_CASE("view toggle transformed")
     view.toggle({-1, 1});
     view.toggle({0, 1});
     CHECK(same_tiles(view.tiles(), {{1, 1}, {2, 1}, {3, 1}}));
-
-    // view.translate(1, 1);
-    // view.toggle({0, 0});  //      # #
-    // view.toggle({1, 0});  //    # #
-    // view.toggle({3, 1});
-    // CHECK(same_tiles(view.tiles(),
-    //                  {{0, 0}, {1, 0}, {1, 1}, {2, 1}}));
-    // view.flip_x();
-    // view.toggle({2, 0});
-    // view.toggle({0, 0});  //    # # #
-    // view.toggle({2, 1});  //    # #
-    // CHECK(same_tiles(view.tiles(),
-    //                  {{0, 0}, {0, 1}, {1, 0}, {1, 1}, {2, 1}}));
-    // view.rotate_ccw();
-    // view.rotate_ccw();    //    # # #
-    // view.toggle({2, 1});  //  # # #
-    // CHECK(same_tiles(view.tiles(),
-    //                  {{-1, 0}, {0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 1}}));
 }

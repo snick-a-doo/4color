@@ -4,7 +4,7 @@
 # meson build/ --reconfigure --buildtype=debugoptimized
 # meson build/ --reconfigure --buildtype=release
 
-project('4-color', 'cpp',
+project('4color', 'cpp',
         default_options: ['cpp_std=c++2a', 'warning_level=3'],
         version: '0.0.1',
         license: 'GPL3')
