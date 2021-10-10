@@ -23,15 +23,15 @@
 class Figure;
 
 /// RGB 0.0 to 1.0
-using Color = std::tuple<double, double, double>;
+using Color = std::tuple<int, int, int>;
 
-/// Some pre-defined colors
+/// Some pre-defined colors from the Brewer palette.
 /// @{
-constexpr Color black{0.0, 0.0, 0.0};
-constexpr Color red{1.0, 0.0, 0.25};
-constexpr Color yellow{1.0, 1.0, 0.0};
-constexpr Color green{0.15, 0.75, 0.15};
-constexpr Color blue{0.0, 0.0, 1.0};
+constexpr Color black{0, 0, 0};
+constexpr Color red{277, 74, 51};
+constexpr Color yellow{254, 217, 142};
+constexpr Color green{44, 162, 95};
+constexpr Color blue{5, 112, 176};
 /// @}
 
 /// An integer transformation matrix for reflections and 90-degree rotations.

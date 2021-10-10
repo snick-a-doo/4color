@@ -236,16 +236,38 @@ TEST_CASE("view toggle")
 TEST_CASE("view toggle transformed")
 {
     Figure x_bar3{{0, 0}, {1, 0}, {2, 0}}; //  # # #
-    Figure_View view(x_bar3, here, black);
-    view.rotate_cw();
-    CHECK(same_tiles(view.tiles(), {{1, -1}, {1, 0}, {1, 1}}));
+    Figure_View view_cw(x_bar3, here, black);
+    Figure_View view_ccw(x_bar3, here, black);
+    view_cw.rotate_cw();
+    view_ccw.rotate_ccw();
+    Tile_List vert_3{{1, -1}, {1, 0}, {1, 1}};
+    CHECK(same_tiles(view_cw.tiles(), vert_3));
+    CHECK(same_tiles(view_ccw.tiles(), vert_3));
 
-    view.toggle({1, 2});
-    view.toggle({1, 3});
-    CHECK(same_tiles(view.tiles(), {{1, -1}, {1, 0}, {1, 1}, {1, 2}, {1, 3}}));
-    view.rotate_cw();
-    CHECK(same_tiles(view.tiles(), {{-1, 1}, {0, 1}, {1, 1}, {2, 1}, {3, 1}}));
-    view.toggle({-1, 1});
+    Tile_List vert_4{{1, -1}, {1, 0}, {1, 1}, {1, 2}};
+
+    SUBCASE("toggle CW")
+    {
+        // Modifies the figure shared by both views.
+        view_cw.toggle({1, 2});
+        CHECK(same_tiles(view_cw.tiles(), vert_4));
+        CHECK(same_tiles(view_ccw.tiles(), vert_4)); // fail: shifted (-1,-1)
+    }
+
+    SUBCASE("toggle CCW")
+    {
+        // Modifies the figure shared by both views.
+        view_ccw.toggle({1, 2});
+        CHECK(same_tiles(view_cw.tiles(), vert_4));  // fail: shifted (0,-1)
+        CHECK(same_tiles(view_ccw.tiles(), vert_4)); // fail: shifted (1, 0)
+    }
+}
+
+TEST_CASE("view toggle transformed 2")
+{
+    Figure f{{0, 0}};
+    Figure_View view(f, here, black);
+    view.rotate_ccw();
     view.toggle({0, 1});
-    CHECK(same_tiles(view.tiles(), {{1, 1}, {2, 1}, {3, 1}}));
+    CHECK(same_tiles(view.tiles(), {{0, 0}, {0, 1}})); // fail: shifted (-1, 0)
 }

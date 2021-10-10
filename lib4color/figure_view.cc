@@ -17,6 +17,7 @@
 #include "figure_view.hh"
 
 #include <cassert>
+#include <cmath>
 
 // Transformation matrices for reflections and 90-degree rotations.
 Matrix constexpr Rl{ 0, -1,  1,  0}; // Left (CCW) rotation
@@ -29,10 +30,8 @@ using VTiles = std::vector<Point<int>>;
 /// Multiply transformation matrices.
 Matrix operator*(Matrix const& m1, Matrix const& m2)
 {
-    return {m1.xx*m2.xx + m1.xy*m2.yx,
-        m1.xx*m2.xy + m1.xy*m2.yy,
-        m1.yx*m2.xx + m1.yy*m2.yx,
-        m1.yx*m2.xy + m1.yy*m2.yy};
+    return {m1.xx*m2.xx + m1.xy*m2.yx, m1.xx*m2.xy + m1.xy*m2.yy,
+            m1.yx*m2.xx + m1.yy*m2.yx, m1.yx*m2.xy + m1.yy*m2.yy};
 }
 
 /// Apply a transformation to a point.
@@ -47,6 +46,13 @@ Matrix transpose(Matrix const& m)
 {
     return {m.xx, m.yx,
             m.xy, m.yy};
+}
+
+/// @return An integer point found by rounding a real point after scaling.
+Point<int> round(Point<double> const& p, double factor = 1.0)
+{
+    return {static_cast<int>(std::round(p.x * factor)),
+            static_cast<int>(std::round(p.y * factor))};
 }
 
 /// Change the tiles' positions.
@@ -99,7 +105,7 @@ VTiles Figure_View::tiles() const
     // Magnify the figure by a factor of 2 so the corners are at integer coordinates.
     VTiles tiles(m_figure.tiles().begin(), m_figure.tiles().end());
 
-    auto r2{round<int>(m_figure.cm(), 2.0)};
+    auto r2{round(m_figure.cm(), 2.0)};
 
     expand(2, tiles);
     // Move the expanded tiles to the origin.
@@ -119,7 +125,7 @@ VTiles Figure_View::tiles() const
     shrink(2, tiles);
 
     // Finally, translate the figure.
-    do_translate(round<int>(m_dr), tiles);
+    do_translate(round(m_dr), tiles);
     return tiles;
 }
 
@@ -127,11 +133,10 @@ Figure_View& Figure_View::toggle(Point<int> p)
 {
     auto cm1{m_figure.cm()};
 
-    auto r2{round<int>(m_figure.cm(), 2.0)};
+    auto r2{round(m_figure.cm(), 2.0)};
     // Un-transform the point.
     VTiles tiles{p};
-    Point<int> dr{round<int>(m_dr, 0.9999)};
-    // Point<int> dr{static_cast<int>(m_dr.x), static_cast<int>(m_dr.y)};
+    Point<int> dr{round(m_dr, 0.9999)}; //11 Fix
     do_translate(-dr, tiles);
     expand(2, tiles);
     do_translate(-r2, tiles);
@@ -140,15 +145,10 @@ Figure_View& Figure_View::toggle(Point<int> p)
     shrink(2, tiles);
     m_figure.toggle(tiles.front());
 
+    // Account for the change in the center of mass.
     auto cm2{m_figure.cm()};
     auto dcm{cm2 - cm1};
     m_dr += m_transform*dcm - dcm;
-
-    // std::cerr << p << ' ' << tiles.front() << std::endl;
-    // std::cerr << ' ' << cm1 << ' ' << cm2 << std::endl;
-    // std::cerr << ' ' << dcm << ' ' << m_transform*dcm << ' '
-    //           << (m_transform*dcm - dcm) << ' ' << m_dr << std::endl;
-    // std::cerr << ' ' << round(m_dr) << ' ' << round(-m_dr) << std::endl;
 
     return *this;
 }

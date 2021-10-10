@@ -16,7 +16,6 @@
 #ifndef FOUR_COLOR_LIB4COLOR_POINT_HH_INCLUDED
 #define FOUR_COLOR_LIB4COLOR_POINT_HH_INCLUDED
 
-#include <cmath>
 #include <iostream>
 
 /// A two-dimensional point
@@ -77,13 +76,6 @@ template<typename T> Point<T> operator -(Point<T>& p)
     return p * -1;
 }
 /// @}
-
-/// @return An integer point found by rounding a real point after scaling.
-template<typename T, typename U> Point<T> round(Point<U> const& p, U factor = 1)
-{
-    return {static_cast<T>(std::round(p.x * factor)),
-            static_cast<T>(std::round(p.y * factor))};
-}
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Point<T>& p)

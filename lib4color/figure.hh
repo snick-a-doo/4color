@@ -44,7 +44,6 @@ public:
 
 private:
     Tile_List m_tiles;
-    Point<double> m_cm{0.0, 0.0};
 };
 
 #endif // FOUR_COLOR_LIB4COLOR_FIGURE_HH_INCLUDED

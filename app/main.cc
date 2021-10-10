@@ -19,7 +19,6 @@
 
 int main(int argc, char** argv)
 {
-  // Initialize gtkmm and create the main window
     auto app = Gtk::Application::create(argc, argv, "4color");
 
     Gtk::Window window;

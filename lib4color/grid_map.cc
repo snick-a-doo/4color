@@ -30,13 +30,14 @@ void set_color(Context const& cr, Color const& color,
                double factor = 1.0, double alpha = 1.0)
 {
     auto [r, g, b] = color;
-    cr->set_source_rgba(factor*r, factor*g, factor*b, alpha);
+    cr->set_source_rgba(factor*r/255.0, factor*g/255.0, factor*b/255.0, alpha);
 }
 
 /// Draw the gridlines in a muted shade of the passed-in color.
 void draw_grid(Context const& cr, Color color, int divisions, int separation)
 {
-    set_color(cr, color, 0.5, 0.3);
+    // Use muted, semi-transparent lines for the grid.
+    set_color(cr, color, 0.6, 0.4);
     cr->set_line_width(1);
     auto width{separation*divisions};
     for (auto i{0}; i < divisions; ++i)
@@ -56,15 +57,17 @@ void draw_status(Context const& cr, int height, int tile_size,
                  bool is_contiguous, bool all_visible,
                  bool four_color, int num_tiles)
 {
-    std::string labels{"CV4" + std::to_string(num_tiles)};
-    std::array states{is_contiguous, all_visible, four_color, false};
+    std::vector<std::pair<std::string, bool>> states{{"C", is_contiguous},
+                                                     {"V", all_visible},
+                                                     {"4", four_color},
+                                                     {std::to_string(num_tiles), false}};
     Cairo::TextExtents te;
     auto y{height - 0.5*tile_size};
-    for (auto i{0u}; i < labels.length(); ++i)
+    for (auto i{0u}; auto const& state : states)
     {
-        auto x{(i + 0.5)*tile_size};
+        auto x{(i++ + 0.5)*tile_size};
         // Draw a green circle for true states.
-        if (states[i])
+        if (state.second)
         {
             set_color(cr, green);
             cr->move_to(x, y);
@@ -72,11 +75,10 @@ void draw_status(Context const& cr, int height, int tile_size,
             cr->fill();
         }
         // Draw the label
-        std::string label{labels[i]};
         set_color(cr, black);
-        cr->get_text_extents(label, te);
+        cr->get_text_extents(state.first, te);
         cr->move_to(x - te.x_bearing - 0.5*te.width, y - te.y_bearing - 0.5*te.height);
-        cr->show_text(label);
+        cr->show_text(state.first);
     }
 }
 
@@ -191,8 +193,8 @@ bool Grid_Map::on_key_press_event(GdkEventKey* event)
 
 bool Grid_Map::on_button_press_event(GdkEventButton* event)
 {
-    Point<double> p{event->x, height() - event->y};
-    m_focused_figure->toggle(round<int>(p, 1.0/m_tile_size));
+    m_focused_figure->toggle(Point{static_cast<int>(event->x)/m_tile_size,
+                                   static_cast<int>(height() - event->y)/m_tile_size});
     queue_draw();
     return true;
 }
@@ -225,7 +227,6 @@ bool Grid_Map::on_draw(Context const& cr)
         {
             auto x{static_cast<double>(tile.x)};
             auto y{static_cast<double>(tile.y)};
-            // cr->user_to_device(x, y);
             plotted[fig.color()].insert(tile);
             cr->rectangle(x, m_num_edge_tiles - y, 1, 1);
         }
