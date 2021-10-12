@@ -47,6 +47,8 @@ class Figure_View
 public:
     Figure_View(Figure& fig, Point<int> position, Color const& color);
 
+    Figure_View& operator=(Figure_View const& rhs);
+
     /// @return A vector of transformed tiles.
     std::vector<Point<int>> tiles() const;
     /// @return The view's color.
@@ -68,20 +70,16 @@ public:
     Figure_View& rotate_ccw();
     /// Rotate 90° clockwise.
     Figure_View& rotate_cw();
-    /// Undo all transformations.
-    Figure_View& reset();
     /// @}
 private:
     /// The source polyomino.
     Figure& m_figure;
-    /// The position passed into the constructor.
-    const Point<double> m_init_position;
     /// The current position.
     Point<double> m_dr;
     /// The current transformation matrix.
     Matrix m_transform;
     /// The displayed color.
-    Color m_color;
+    const Color m_color;
 };
 
 /// Send an ASCII representation of the transformed figure.

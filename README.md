@@ -45,7 +45,6 @@ The number of tiles in each figure is also shown.
 # TODO
 * Figures sometimes shift when toggling.
 * Make the controls discoverable.
-* Undo.
 * External config files for keymap and colors?
 * Triangular grid mode.
 * Crop exported maps.

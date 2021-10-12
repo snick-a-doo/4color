@@ -21,6 +21,7 @@
 
 #include <gtkmm.h>
 
+#include <deque>
 #include <vector>
 
 /// A 2D field for displaying polyominos.
@@ -52,12 +53,43 @@ private:
     /// Render the configuration to the file "4color.png".
     void export_png();
 
-    Figure m_figure;
-    std::vector<Figure_View> m_views;
-    std::vector<Figure_View>::iterator m_focused_figure{m_views.end()};
     int m_num_edge_tiles;
     int m_tile_size;
     bool m_write_to_file{false};
+
+    Figure m_figure;
+    std::vector<Figure_View> m_views;
+    std::vector<Figure_View>::iterator m_focused_figure;
+
+    /// Apply the transformation function to all figures if @p all is true. Otherwise
+    /// transform just the focused figure.
+    void do_transform(Figure_View& (Figure_View::*fcn)(Point<int>), bool all, Point<int> arg);
+    void do_transform(Figure_View& (Figure_View::*fcn)(), bool all);
+
+    // History management
+    //11 Extract class?
+    //11 Use history instead of members above for current state?
+
+    struct State
+    {
+        Figure figure;
+        std::vector<Figure_View> views;
+        std::vector<Figure_View>::iterator focused_figure;
+    };
+    /// Erase states after m_now and add the current state.
+    void record();
+    /// Move backward through the states.
+    void undo();
+    /// Move forward through the states.
+    void redo();
+    /// Go to the initial state.
+    void reset();
+    /// Set the current state to the one pointed to by the iterator.
+    void update(std::deque<State>::const_iterator it);
+    /// The accumulated states.
+    std::deque<State> m_history;
+    /// An iterator to the current state.
+    std::deque<State>::const_iterator m_now;
 };
 
 #endif // FOUR_COLOR_LIB4COLOR_GRID_MAP_HH_INCLUDED

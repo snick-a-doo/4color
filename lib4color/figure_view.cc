@@ -85,10 +85,16 @@ void shrink(int factor, VTiles& tiles)
 
 Figure_View::Figure_View(Figure& fig, Point<int> position, Color const& color)
     : m_figure{fig},
-      m_init_position{static_cast<double>(position.x), static_cast<double>(position.y)},
-      m_dr{m_init_position},
+      m_dr{static_cast<double>(position.x), static_cast<double>(position.y)},
       m_color{color}
 {
+}
+
+Figure_View& Figure_View::operator=(Figure_View const& rhs)
+{
+    m_dr = rhs.m_dr;
+    m_transform = rhs.m_transform;
+    return *this;
 }
 
 Color Figure_View::color() const
@@ -180,13 +186,6 @@ Figure_View& Figure_View::rotate_ccw()
 Figure_View& Figure_View::rotate_cw()
 {
     m_transform = Rr*m_transform;
-    return *this;
-}
-
-Figure_View& Figure_View::reset()
-{
-    m_dr = m_init_position;
-    m_transform = Matrix();
     return *this;
 }
 

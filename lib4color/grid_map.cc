@@ -15,6 +15,7 @@
 
 #include <grid_map.hh>
 
+#include <cassert>
 #include <iostream>
 #include <list>
 #include <numbers>
@@ -24,6 +25,11 @@
 using Context = Cairo::RefPtr<Cairo::Context>;
 /// A map of colors to tiles.
 using Figure_Map = std::map<Color, std::set<Point<int>>>;
+
+constexpr Point<int> left{-1, 0};
+constexpr Point<int> right{1, 0};
+constexpr Point<int> up{0, 1};
+constexpr Point<int> down{0, -1};
 
 /// Set the color in the drawing context.
 void set_color(Context const& cr, Color const& color,
@@ -55,12 +61,16 @@ void draw_grid(Context const& cr, Color color, int divisions, int separation)
 /// Draw status info in the gap at the bottom.
 void draw_status(Context const& cr, int height, int tile_size,
                  bool is_contiguous, bool all_visible,
-                 bool four_color, int num_tiles)
+                 bool four_color, int num_tiles,
+                 std::size_t undo_pos, std::size_t num_undos)
 {
+    std::string undos{std::to_string(undo_pos) + "/" + std::to_string(num_undos)};
     std::vector<std::pair<std::string, bool>> states{{"C", is_contiguous},
                                                      {"V", all_visible},
                                                      {"4", four_color},
-                                                     {std::to_string(num_tiles), false}};
+                                                     {std::to_string(num_tiles), false},
+                                                     {"", false},
+                                                     {undos, false}};
     Cairo::TextExtents te;
     auto y{height - 0.5*tile_size};
     for (auto i{0u}; auto const& state : states)
@@ -126,6 +136,8 @@ bool needs_four_colors(Figure_Map const& fm)
     return !fm.empty();
 }
 
+// Grid_Map implementation
+
 Grid_Map::Grid_Map(int num_edge_tiles, int tile_size)
     : m_num_edge_tiles(num_edge_tiles),
       m_tile_size(tile_size)
@@ -137,6 +149,9 @@ Grid_Map::Grid_Map(int num_edge_tiles, int tile_size)
     for (auto i{0}; const auto& color : {red, yellow, green, blue})
         m_views.emplace_back(m_figure, Point{3*i++, 0}, color);
     m_focused_figure = m_views.begin();
+
+    m_history.emplace_back(Figure(), m_views, m_focused_figure);
+    m_now = m_history.begin();
 }
 
 void Grid_Map::focus_next_figure()
@@ -146,46 +161,109 @@ void Grid_Map::focus_next_figure()
         m_focused_figure = m_views.begin();
 }
 
+void Grid_Map::record()
+{
+    assert (m_now != m_history.end());
+    m_history.erase(std::next(m_now), m_history.end());
+    m_history.emplace_back(m_figure, m_views, m_focused_figure);
+    m_now = std::prev(m_history.end());
+}
+
+void Grid_Map::undo()
+{
+    assert (!m_history.empty());
+    assert (m_now != m_history.end());
+    if (m_now != m_history.begin())
+        update(std::prev(m_now));
+}
+
+void Grid_Map::redo()
+{
+    assert (!m_history.empty());
+    assert (m_now != m_history.end());
+    if (std::next(m_now) != m_history.end())
+        update(std::next(m_now));
+}
+
+void Grid_Map::reset()
+{
+    assert (!m_history.empty());
+    update(m_history.begin());
+}
+
+void Grid_Map::update(std::deque<State>::const_iterator it)
+{
+    m_now = it;
+    m_figure = m_now->figure;
+    m_views = m_now->views;
+    m_focused_figure = m_now->focused_figure;
+}
+
+void Grid_Map::do_transform(Figure_View& (Figure_View::*fcn)(Point<int>),
+                            bool all,
+                            Point<int> arg)
+{
+    for_each(all ? m_views.begin() : m_focused_figure,
+             all ? m_views.end() : std::next(m_focused_figure),
+             std::bind(fcn, std::placeholders::_1, arg));
+}
+
+void Grid_Map::do_transform(Figure_View& (Figure_View::*fcn)(), bool all)
+{
+    //11 For rotating and flipping, I'd really like to flip/rotate about the center of the
+    //11 grid. Right now it flips/rotates each figure about its cm.
+    for_each(all ? m_views.begin() : m_focused_figure,
+             all ? m_views.end() : std::next(m_focused_figure),
+             std::bind(fcn, std::placeholders::_1));
+}
+
 bool Grid_Map::on_key_press_event(GdkEventKey* event)
 {
-    switch (event->keyval)
+    if (event->keyval == GDK_KEY_z)
+        undo();
+    else if (event->keyval == GDK_KEY_y)
+        redo();
+    else if (event->keyval == GDK_KEY_c)
+        reset();
+    else
     {
-    case GDK_KEY_Left:
-        m_focused_figure->translate({-1, 0});
-        break;
-    case GDK_KEY_Right:
-        m_focused_figure->translate({1, 0});
-        break;
-    case GDK_KEY_Up:
-        m_focused_figure->translate({0, 1});
-        break;
-    case GDK_KEY_Down:
-        m_focused_figure->translate({0, -1});
-        break;
-    case GDK_KEY_Page_Up:
-        m_focused_figure->rotate_ccw();
-        break;
-    case GDK_KEY_Page_Down:
-        m_focused_figure->rotate_cw();
-        break;
-    case GDK_KEY_space: // Flip
-        m_focused_figure->flip_x();
-        break;
-    case GDK_KEY_Tab: // Focus
-        focus_next_figure();
-        break;
-    case GDK_KEY_c: // Clear
-        // Erase tiles and reset each position and orientation.
-        m_figure.clear();
-        for (auto& fig : m_views)
-            fig.reset();
-        break;
-    case GDK_KEY_w: // Write
-        export_png();
-        break;
-    case GDK_KEY_q: // Quit
-        Gtk::Main::quit();
-        break;
+        auto shift{event->state & Gdk::ModifierType::SHIFT_MASK};
+        switch (event->keyval)
+        {
+        case GDK_KEY_Left:
+            do_transform(&Figure_View::translate, shift, left);
+            break;
+        case GDK_KEY_Right:
+            do_transform(&Figure_View::translate, shift, right);
+            break;
+        case GDK_KEY_Up:
+            do_transform(&Figure_View::translate, shift, up);
+            break;
+        case GDK_KEY_Down:
+            do_transform(&Figure_View::translate, shift, down);
+            break;
+        case GDK_KEY_Page_Up:
+            do_transform(&Figure_View::rotate_ccw, shift);
+            break;
+        case GDK_KEY_Page_Down:
+            do_transform(&Figure_View::rotate_cw, shift);
+            break;
+        case GDK_KEY_space: // Flip
+            do_transform(&Figure_View::flip_y, shift);
+            break;
+        case GDK_KEY_Tab: // Focus
+            focus_next_figure();
+            break;
+        case GDK_KEY_w: // Write
+            export_png();
+            break;
+        case GDK_KEY_q: // Quit
+            Gtk::Main::quit();
+            break;
+        default:
+            return true;
+        }
+        record();
     }
     queue_draw();
     return true;
@@ -195,6 +273,7 @@ bool Grid_Map::on_button_press_event(GdkEventButton* event)
 {
     m_focused_figure->toggle(Point{static_cast<int>(event->x)/m_tile_size,
                                    static_cast<int>(height() - event->y)/m_tile_size});
+    record();
     queue_draw();
     return true;
 }
@@ -239,7 +318,8 @@ bool Grid_Map::on_draw(Context const& cr)
     if (!m_write_to_file)
         draw_status(cr, height(), m_tile_size,
                     m_figure.is_contiguous(), all_visible,
-                    needs_four_colors(plotted), num_tiles);
+                    needs_four_colors(plotted), num_tiles,
+                    std::distance(m_history.cbegin(), m_now) + 1, m_history.size());
 
     return true;
 }
