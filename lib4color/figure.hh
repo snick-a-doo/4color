@@ -34,8 +34,6 @@ public:
     bool is_contiguous() const;
     /// @return The set of tile positions.
     Tile_List const& tiles() const;
-    /// @return The center of mass of the figure.
-    Point<double> cm() const;
 
     /// If p is a point in the figure, remove it. Otherwise, add it.
     void toggle(Point<int> const& p);

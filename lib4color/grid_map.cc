@@ -140,10 +140,23 @@ bool needs_four_colors(Figure_Map const& fm)
 
 Grid_Map::Grid_Map(int num_edge_tiles, int tile_size)
     : m_num_edge_tiles(num_edge_tiles),
-      m_tile_size(tile_size)
+      m_tile_size(tile_size),
+      m_image_export_chooser(
+          std::make_unique<Gtk::FileChooserDialog>(
+              "Save figure image", Gtk::FILE_CHOOSER_ACTION_SAVE, Gtk::DIALOG_MODAL))
 {
     set_can_focus(true);
     add_events(Gdk::KEY_PRESS_MASK | Gdk::BUTTON_PRESS_MASK);
+
+    m_image_export_chooser->set_modal(true);
+    m_image_export_chooser->signal_response().connect(
+        sigc::mem_fun(*this, &Grid_Map::export_png));
+    m_image_export_chooser->add_button("Save", Gtk::RESPONSE_OK);
+    m_image_export_chooser->add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    auto PNG_Filter{Gtk::FileFilter::create()};
+    PNG_Filter->set_name("PNG files");
+    PNG_Filter->add_mime_type("image/png");
+    m_image_export_chooser->add_filter(PNG_Filter);
 
     // Add the views.
     for (auto i{0}; const auto& color : {red, yellow, green, blue})
@@ -255,7 +268,7 @@ bool Grid_Map::on_key_press_event(GdkEventKey* event)
             focus_next_figure();
             break;
         case GDK_KEY_w: // Write
-            export_png();
+            m_image_export_chooser->show();
             break;
         case GDK_KEY_q: // Quit
             Gtk::Main::quit();
@@ -272,7 +285,7 @@ bool Grid_Map::on_key_press_event(GdkEventKey* event)
 bool Grid_Map::on_button_press_event(GdkEventButton* event)
 {
     m_focused_figure->toggle(Point{static_cast<int>(event->x)/m_tile_size,
-                                   static_cast<int>(height() - event->y)/m_tile_size});
+                                   static_cast<int>(height() - event->y)/m_tile_size - 1});
     record();
     queue_draw();
     return true;
@@ -304,10 +317,8 @@ bool Grid_Map::on_draw(Context const& cr)
         set_color(cr, fig.color());
         for (auto const& tile : fig.tiles())
         {
-            auto x{static_cast<double>(tile.x)};
-            auto y{static_cast<double>(tile.y)};
             plotted[fig.color()].insert(tile);
-            cr->rectangle(x, m_num_edge_tiles - y, 1, 1);
+            cr->rectangle(tile.x, m_num_edge_tiles - tile.y - 1, 1, 1);
         }
         cr->fill();
     }
@@ -324,13 +335,16 @@ bool Grid_Map::on_draw(Context const& cr)
     return true;
 }
 
-void Grid_Map::export_png()
+void Grid_Map::export_png(int response)
 {
+    m_image_export_chooser->hide();
+    if (response != Gtk::RESPONSE_OK)
+        return;
+
     m_write_to_file = true;
     auto surface = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, width(), width());
     auto cr = Cairo::Context::create(surface);
     on_draw(cr);
-    surface->write_to_png("4color.png");
-    std::cout << "wrote\n";
+    surface->write_to_png(m_image_export_chooser->get_file()->get_path());
     m_write_to_file = false;
 }

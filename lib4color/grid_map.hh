@@ -51,7 +51,7 @@ private:
     /// Change the figure that events apply to.
     void focus_next_figure();
     /// Render the configuration to the file "4color.png".
-    void export_png();
+    void export_png(int response);
 
     int m_num_edge_tiles;
     int m_tile_size;
@@ -90,6 +90,8 @@ private:
     std::deque<State> m_history;
     /// An iterator to the current state.
     std::deque<State>::const_iterator m_now;
+    /// The file selector for saving an image of the figures.
+    std::unique_ptr<Gtk::FileChooserDialog> m_image_export_chooser;
 };
 
 #endif // FOUR_COLOR_LIB4COLOR_GRID_MAP_HH_INCLUDED

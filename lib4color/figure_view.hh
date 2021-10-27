@@ -50,7 +50,7 @@ public:
     Figure_View& operator=(Figure_View const& rhs);
 
     /// @return A vector of transformed tiles.
-    std::vector<Point<int>> tiles() const;
+    Tile_List tiles() const;
     /// @return The view's color.
     Color color() const;
 
@@ -75,7 +75,8 @@ private:
     /// The source polyomino.
     Figure& m_figure;
     /// The current position.
-    Point<double> m_dr;
+    mutable Point<double> m_dr;
+    Point<double> m_dcm;
     /// The current transformation matrix.
     Matrix m_transform;
     /// The displayed color.

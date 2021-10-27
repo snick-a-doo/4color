@@ -28,7 +28,6 @@ TEST_CASE("initial figure")
     Figure f;
     CHECK(f.tiles().empty());
     CHECK(f.is_contiguous());
-    CHECK(f.cm() == Point{0.0, 0.0});
 }
 
 TEST_CASE("one tile")
@@ -37,7 +36,6 @@ TEST_CASE("one tile")
     f.toggle({13, 19});
     CHECK(f.tiles().size() == 1);
     CHECK(f.is_contiguous());
-    CHECK(f.cm() == Point{13.0, 19.0});
 }
 
 TEST_CASE("discontiguous")
@@ -48,7 +46,6 @@ TEST_CASE("discontiguous")
     f.toggle({14, 20});
     CHECK(f.tiles().size() == 2);
     CHECK(!f.is_contiguous());
-    CHECK(f.cm() == Point{13.5, 19.5});
     // Fill in SE
     f.toggle({14, 19});
     CHECK(f.tiles().size() == 3);
@@ -67,14 +64,12 @@ TEST_CASE("turn off")
     CHECK(f.tiles().size() == 3);
     CHECK(f.is_contiguous());
     f.toggle({1, 1});
-    CHECK(f.cm() == Point{1.5, 1.5});
     CHECK(f.tiles().size() == 2);
     CHECK(!f.is_contiguous());
     f.toggle({2, 1});
     f.toggle({1, 2});
     CHECK(f.tiles().empty());
     CHECK(f.is_contiguous());
-    CHECK(f.cm() == Point{0.0, 0.0});
 }
 
 std::ostream& operator<<(std::ostream& os, Tile_List const& tiles)
@@ -84,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, Tile_List const& tiles)
     return os;
 }
 
-bool same_tiles(std::vector<Point<int>> const& prime, Tile_List const& expected)
+bool same_tiles(Tile_List const& prime, Tile_List const& expected)
 {
     Tile_List ps{prime.begin(), prime.end()};
     if (ps == expected)
@@ -258,8 +253,8 @@ TEST_CASE("view toggle transformed")
     {
         // Modifies the figure shared by both views.
         view_ccw.toggle({1, 2});
-        CHECK(same_tiles(view_cw.tiles(), vert_4));  // fail: shifted (0,-1)
-        CHECK(same_tiles(view_ccw.tiles(), vert_4)); // fail: shifted (1, 0)
+        CHECK(same_tiles(view_cw.tiles(), vert_4));  // fail: shifted (0,1)
+        CHECK(same_tiles(view_ccw.tiles(), vert_4));
     }
 }
 

@@ -50,14 +50,6 @@ Tile_List const& Figure::tiles() const
     return m_tiles;
 }
 
-Point<double> Figure::cm() const
-{
-    Point<double> cm{0.0, 0.0};
-    for (auto const& tile : m_tiles)
-        cm += tile;
-    return m_tiles.empty() ? cm : cm /= m_tiles.size();
-}
-
 void Figure::toggle(Point<int> const& p)
 {
     if (m_tiles.contains(p))

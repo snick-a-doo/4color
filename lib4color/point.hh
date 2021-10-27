@@ -16,6 +16,7 @@
 #ifndef FOUR_COLOR_LIB4COLOR_POINT_HH_INCLUDED
 #define FOUR_COLOR_LIB4COLOR_POINT_HH_INCLUDED
 
+#include <cmath>
 #include <iostream>
 
 /// A two-dimensional point
@@ -71,11 +72,29 @@ template<typename T, typename U> Point<T>& operator /=(Point<T>& p, U k)
 {
     return p = p/k;
 }
-template<typename T> Point<T> operator -(Point<T>& p)
+template<typename T> Point<T> operator -(Point<T> const& p)
 {
     return p * -1;
 }
 /// @}
+
+inline double flooround(double x)
+{
+    return std::floor(x + 0.5);
+}
+
+/// @return An integer point found by rounding a real point after scaling.
+inline Point<int> flooround(Point<double> p)
+{
+    return {static_cast<int>(flooround(p.x)),
+            static_cast<int>(flooround(p.y))};
+}
+
+inline Point<double> to_double(Point<int> p)
+{
+    return {static_cast<double>(p.x),
+            static_cast<double>(p.y)};
+}
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Point<T>& p)

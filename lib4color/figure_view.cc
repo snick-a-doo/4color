@@ -17,7 +17,15 @@
 #include "figure_view.hh"
 
 #include <cassert>
-#include <cmath>
+
+template <typename Container>
+Point<double> cm(Container const& tiles)
+{
+    Point<double> cm{0.0, 0.0};
+    for (auto const& tile : tiles)
+        cm += tile;
+    return tiles.empty() ? cm : cm /=tiles.size();
+}
 
 // Transformation matrices for reflections and 90-degree rotations.
 Matrix constexpr Rl{ 0, -1,  1,  0}; // Left (CCW) rotation
@@ -25,13 +33,23 @@ Matrix constexpr Rr{ 0,  1, -1,  0}; // Right (CW) rotation
 Matrix constexpr Fx{ 1,  0,  0, -1}; // Flip about x-axis
 Matrix constexpr Fy{-1,  0,  0,  1}; // Flip about y-axis
 
-using VTiles = std::vector<Point<int>>;
-
 /// Multiply transformation matrices.
 Matrix operator*(Matrix const& m1, Matrix const& m2)
 {
     return {m1.xx*m2.xx + m1.xy*m2.yx, m1.xx*m2.xy + m1.xy*m2.yy,
             m1.yx*m2.xx + m1.yy*m2.yx, m1.yx*m2.xy + m1.yy*m2.yy};
+}
+
+std::ostream& operator<<(std::ostream& os, Matrix const& m)
+{
+    return os << '[' << m.xx << ' ' << m.xy << " / " << m.yx << ' ' << m.yy << ']';
+}
+
+std::ostream& operator<<(std::ostream& os, Tile_List const& tiles)
+{
+    for (auto t : tiles)
+        os << t;
+    return os;
 }
 
 /// Apply a transformation to a point.
@@ -48,15 +66,10 @@ Matrix transpose(Matrix const& m)
             m.xy, m.yy};
 }
 
-/// @return An integer point found by rounding a real point after scaling.
-Point<int> round(Point<double> const& p, double factor = 1.0)
-{
-    return {static_cast<int>(std::round(p.x * factor)),
-            static_cast<int>(std::round(p.y * factor))};
-}
+using VTiles = std::vector<Point<double>>;
 
 /// Change the tiles' positions.
-void do_translate(Point<int> dr, VTiles& tiles)
+void do_translate(Point<double> dr, VTiles& tiles)
 {
     for (auto& tile : tiles)
         tile += dr;
@@ -69,23 +82,9 @@ void transform(Matrix const& m, VTiles& tiles)
         tile = m*tile;
 }
 
-/// Multiply the tile positions by an integer.
-void expand(int factor, VTiles& tiles)
-{
-    for (auto& tile : tiles)
-        tile *= factor;
-}
-
-/// Divide the tile positions by an integer.
-void shrink(int factor, VTiles& tiles)
-{
-    for (auto& tile : tiles)
-        tile /= factor;
-}
-
 Figure_View::Figure_View(Figure& fig, Point<int> position, Color const& color)
     : m_figure{fig},
-      m_dr{static_cast<double>(position.x), static_cast<double>(position.y)},
+      m_dr{to_double(position)},
       m_color{color}
 {
 }
@@ -93,6 +92,7 @@ Figure_View::Figure_View(Figure& fig, Point<int> position, Color const& color)
 Figure_View& Figure_View::operator=(Figure_View const& rhs)
 {
     m_dr = rhs.m_dr;
+    m_dcm = rhs.m_dcm;
     m_transform = rhs.m_transform;
     return *this;
 }
@@ -102,59 +102,48 @@ Color Figure_View::color() const
     return m_color;
 }
 
-VTiles Figure_View::tiles() const
+Tile_List Figure_View::tiles() const
 {
     if (m_figure.tiles().empty())
         return {};
 
-    // The rotation axis may be at the corners of tiles, i.e. 1/2-integer coordinates.
-    // Magnify the figure by a factor of 2 so the corners are at integer coordinates.
-    VTiles tiles(m_figure.tiles().begin(), m_figure.tiles().end());
+    VTiles tiles;
+    for (auto t : (m_figure.tiles()))
+        tiles.emplace_back(t.x, t.y);
 
-    auto r2{round(m_figure.cm(), 2.0)};
-
-    expand(2, tiles);
-    // Move the expanded tiles to the origin.
-    do_translate(-r2, tiles);
-    // Rotate and flip.
+    auto r{cm(tiles)};
+    do_translate(-r, tiles);
     transform(m_transform, tiles);
+    do_translate(r, tiles);
+    do_translate(m_dcm, tiles);
+    do_translate(m_dr, tiles);
+    auto p{to_double(flooround(tiles.front()))};
+    m_dr += p - tiles.front();
 
-    // Move the figure back to where it started and contract it to normal size. Rotating
-    // can put tiles on odd coordinates. Adjust the translation to ensure even
-    // coordinates.
-    if ((tiles.front().x + r2.x) % 2 != 0)
-        --r2.x;
-    if ((tiles.front().y + r2.y) % 2 != 0)
-        --r2.y;
-    do_translate(r2, tiles);
-    // Shrink the figure to its original size.
-    shrink(2, tiles);
-
-    // Finally, translate the figure.
-    do_translate(round(m_dr), tiles);
-    return tiles;
+    Tile_List rounded;
+    for (auto t : tiles)
+        rounded.insert(flooround(t));
+    return rounded;
 }
 
 Figure_View& Figure_View::toggle(Point<int> p)
 {
-    auto cm1{m_figure.cm()};
+    VTiles tiles;
+    for (auto t : (m_figure.tiles()))
+        tiles.emplace_back(t.x, t.y);
+    auto r{cm(tiles)};
 
-    auto r2{round(m_figure.cm(), 2.0)};
     // Un-transform the point.
-    VTiles tiles{p};
-    Point<int> dr{round(m_dr, 0.9999)}; //11 Fix
-    do_translate(-dr, tiles);
-    expand(2, tiles);
-    do_translate(-r2, tiles);
-    transform(transpose(m_transform), tiles);
-    do_translate(r2, tiles);
-    shrink(2, tiles);
-    m_figure.toggle(tiles.front());
+    VTiles tile{to_double(p)};
+    do_translate(-m_dr, tile);
+    do_translate(-m_dcm, tile);
+    do_translate(-r, tile);
+    transform(transpose(m_transform), tile);
+    do_translate(r, tile);
 
-    // Account for the change in the center of mass.
-    auto cm2{m_figure.cm()};
-    auto dcm{cm2 - cm1};
-    m_dr += m_transform*dcm - dcm;
+    m_figure.toggle(flooround(tile.front()));
+    auto dcm{cm(m_figure.tiles()) - r};
+    m_dcm += m_transform*dcm - dcm;
 
     return *this;
 }
@@ -201,7 +190,9 @@ std::ostream& operator<<(std::ostream& os, Figure_View const& f)
     };
 
     // Get the transformed tiles in the order they will be sent to the stream.
-    VTiles ps{f.tiles()};
+    std::vector<Point<int>> ps;
+    for (auto t : f.tiles())
+        ps.push_back(t);
     std::sort(ps.begin(), ps.end(), raster);
 
     auto it_ps = ps.begin();
